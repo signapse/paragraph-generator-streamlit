@@ -255,16 +255,22 @@ def main():
     st.title("🎬 SRT Processor")
     st.write("Upload your SRT and MP4 files to process subtitles into paragraphs for translation workflows.")
 
+    # Initialize session state
+    if 'processed' not in st.session_state:
+        st.session_state.processed = False
+    if 'results_data' not in st.session_state:
+        st.session_state.results_data = None
+
     # Create two columns for file uploads
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("📄 Upload SRT File")
-        srt_file = st.file_uploader("Choose an SRT file", type=['srt'])
+        srt_file = st.file_uploader("Choose an SRT file", type=['srt'], key="srt_uploader")
 
     with col2:
         st.subheader("🎥 Upload MP4 File")
-        mp4_file = st.file_uploader("Choose an MP4 file", type=['mp4'])
+        mp4_file = st.file_uploader("Choose an MP4 file", type=['mp4'], key="mp4_uploader")
 
     # Configuration options
     st.subheader("⚙️ Configuration")
@@ -275,7 +281,19 @@ def main():
     paragraph_duration_threshold = 1000
     wait_time_threshold = 1000
 
-    if st.button("🚀 Process Files", type="primary"):
+    # Reset processed state if files change
+    if srt_file is not None or mp4_file is not None:
+        # Check if files are different from last processing
+        current_files = (srt_file.name if srt_file else None, mp4_file.name if mp4_file else None)
+        if 'last_files' not in st.session_state:
+            st.session_state.last_files = (None, None)
+
+        if current_files != st.session_state.last_files:
+            st.session_state.processed = False
+            st.session_state.results_data = None
+            st.session_state.last_files = current_files
+
+    if st.button("🚀 Process Files", type="primary", disabled=st.session_state.processed):
         if srt_file is None:
             st.error("Please upload an SRT file!")
             return
