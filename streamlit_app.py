@@ -274,8 +274,21 @@ def main():
 
     # Configuration options
     st.subheader("⚙️ Configuration")
-    request_name = st.text_input("Request Name", value="sample_project",
-                                 help="This will be used as the prefix for output files")
+
+    # Auto-detect request name from uploaded files
+    auto_request_name = ""
+    if srt_file is not None:
+        # Remove .srt extension and use as request name
+        auto_request_name = srt_file.name.rsplit('.', 1)[0]
+    elif mp4_file is not None:
+        # Remove .mp4 extension and use as request name
+        auto_request_name = mp4_file.name.rsplit('.', 1)[0]
+
+    request_name = st.text_input(
+        "Request Name",
+        value=auto_request_name if auto_request_name else "sample_project",
+        help="This will be used as the prefix for output files. Auto-detected from uploaded file names."
+    )
 
     # Fixed thresholds as per original script
     paragraph_duration_threshold = 1000
@@ -400,36 +413,75 @@ def main():
                         video_srt_content += f"{item.text}\n\n"
                     zip_file.writestr(f"{request_name}_Videos.srt", video_srt_content)
 
-                zip_buffer.seek(0)
+                # Store results in session state
+                st.session_state.results_data = {
+                    'zip_buffer': zip_buffer.getvalue(),
+                    'request_name': request_name,
+                    'out_sentences': out_sentences,
+                    'out_paragraphs': out_paragraphs,
+                    'dcs_data': dcs_data,
+                    'video_srt': video_srt,
+                    'FPS': FPS
+                }
+                st.session_state.processed = True
 
-                st.download_button(
-                    label="📦 Download Results (ZIP)",
-                    data=zip_buffer.getvalue(),
-                    file_name=f"{request_name}_processed_results.zip",
-                    mime="application/zip"
-                )
+                # Success message and metrics
+                st.success(
+                    f"Successfully processed {len(out_sentences)} sentences into {len(out_paragraphs)} paragraphs!")
 
-                # Show preview of results
-                if st.checkbox("👀 Show Preview of Results"):
-                    st.subheader("Sample Sentences")
-                    df_sentences = pd.DataFrame(out_sentences[:5])  # Show first 5
-                    st.dataframe(df_sentences[['text', 'seconds']])
-
-                    if dcs_data:
-                        st.subheader("Sample Paragraphs")
-                        df_paragraphs = pd.DataFrame(dcs_data[:3])  # Show first 3
-                        st.dataframe(df_paragraphs)
-
-                    st.subheader("Video SRT Preview")
-                    # Properly format SRT for preview
-                    srt_preview = ""
-                    for i, item in enumerate(video_srt[:3]):  # Show first 3 items
-                        srt_preview += f"{item.index}\n{item.start} --> {item.end}\n{item.text}\n\n"
-                    st.text(srt_preview)
+                # Show some statistics
+                col6, col7, col8 = st.columns(3)
+                with col6:
+                    st.metric("Total Sentences", len(out_sentences))
+                with col7:
+                    st.metric("Total Paragraphs", len(out_paragraphs))
+                with col8:
+                    st.metric("Video FPS", FPS)
 
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
             st.error("Please check your file formats and try again.")
+
+    # Display results if processing is complete
+    if st.session_state.processed and st.session_state.results_data:
+        results = st.session_state.results_data
+
+        # Create download section
+        st.subheader("📥 Download Results")
+
+        col_download, col_reset = st.columns([3, 1])
+
+        with col_download:
+            st.download_button(
+                label="📦 Download Results (ZIP)",
+                data=results['zip_buffer'],
+                file_name=f"{results['request_name']}_processed_results.zip",
+                mime="application/zip"
+            )
+
+        with col_reset:
+            if st.button("🔄 Process New Files", type="secondary"):
+                st.session_state.processed = False
+                st.session_state.results_data = None
+                st.rerun()
+
+        # Show preview of results
+        if st.checkbox("👀 Show Preview of Results"):
+            st.subheader("Sample Sentences")
+            df_sentences = pd.DataFrame(results['out_sentences'][:5])  # Show first 5
+            st.dataframe(df_sentences[['text', 'seconds']])
+
+            if results['dcs_data']:
+                st.subheader("Sample Paragraphs")
+                df_paragraphs = pd.DataFrame(results['dcs_data'][:3])  # Show first 3
+                st.dataframe(df_paragraphs)
+
+            st.subheader("Video SRT Preview")
+            # Properly format SRT for preview
+            srt_preview = ""
+            for i, item in enumerate(results['video_srt'][:3]):  # Show first 3 items
+                srt_preview += f"{item.index}\n{item.start} --> {item.end}\n{item.text}\n\n"
+            st.text(srt_preview)
 
 
 if __name__ == "__main__":
