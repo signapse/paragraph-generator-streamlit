@@ -92,7 +92,7 @@ def parse_SRT_subs_to_sentences(subs, FPS):
                     "text": sentence,
                     "start_frame": current_frame,
                     "end_frame": sent_end,
-                    "seconds": (sent_end - current_frame) / FPS,
+                    "seconds": ((sent_end - current_frame) / FPS) * 1.1,
                     "text_id": sentence + "_".join(str(idx) for idx in buffer_indices)
                 })
                 all_text += sentence + " "
@@ -144,8 +144,7 @@ def convert_sentences_to_paragraphs(out_sentences, request, FPS, paragraph_durat
         wait_time_split = wait_time > wait_time_threshold
 
         if (s > 0) and (paragraph_duration_split or wait_time_split):
-            paragraph += f"({paragraph_duration:.2f})"
-            paragraphs.append(paragraph)
+            paragraphs.append(paragraph.strip())
             paragraphs_id.append(paragraph_id)
 
             paragraph = ""
@@ -157,6 +156,7 @@ def convert_sentences_to_paragraphs(out_sentences, request, FPS, paragraph_durat
             paragraph_duration = 0
 
         paragraph += sentence["text"]
+        paragraph += f" ({sentence_duration:.1f})"
         paragraph_id += sentence["text_id"]
         paragraph += " "
         sentences_in_paragraph += 1
@@ -171,8 +171,7 @@ def convert_sentences_to_paragraphs(out_sentences, request, FPS, paragraph_durat
             'duration': sentence["seconds"]
         })
 
-    paragraph += f"({paragraph_duration:.2f})"
-    paragraphs.append(paragraph)
+    paragraphs.append(paragraph.strip())
     paragraphs_id.append(paragraph_id)
 
     out_paragraphs = {}
