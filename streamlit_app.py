@@ -155,8 +155,16 @@ def convert_sentences_to_paragraphs(out_sentences, request, FPS, paragraph_durat
             sentences_in_paragraph = 0
             paragraph_duration = 0
 
-        paragraph += sentence["text"]
-        paragraph += f" ({sentence_duration:.1f})"
+        # Insert duration before the final punctuation
+        sentence_text = sentence["text"]
+        # Check if sentence ends with punctuation
+        if sentence_text and sentence_text[-1] in '.!?':
+            # Insert duration before the punctuation
+            paragraph += sentence_text[:-1] + f" ({sentence_duration:.1f})" + sentence_text[-1]
+        else:
+            # No punctuation, add duration after text
+            paragraph += sentence_text + f" ({sentence_duration:.1f})"
+
         paragraph_id += sentence["text_id"]
         paragraph += " "
         sentences_in_paragraph += 1
